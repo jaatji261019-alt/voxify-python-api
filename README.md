@@ -1,2 +1,2 @@
-# main.py
+# voxify-python-api
 Multiple voices 
