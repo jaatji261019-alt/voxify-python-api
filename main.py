@@ -1,0 +1,42 @@
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+import edge_tts
+
+app = FastAPI()
+
+# ================= MODEL =================
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "en-US-AriaNeural"
+
+# ================= VOICES API =================
+@app.get("/voices")
+async def get_voices():
+    voices = await edge_tts.list_voices()
+
+    return [
+        {
+            "name": v["ShortName"],
+            "gender": v["Gender"],
+            "lang": v["Locale"],
+            "friendly": v["FriendlyName"]
+        }
+        for v in voices
+    ]
+
+# ================= TTS =================
+@app.post("/tts")
+async def tts(req: TTSRequest):
+
+    async def audio_stream():
+        communicate = edge_tts.Communicate(
+            text=req.text,
+            voice=req.voice
+        )
+
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                yield chunk["data"]
+
+    return StreamingResponse(audio_stream(), media_type="audio/mpeg")
