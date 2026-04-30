@@ -9,7 +9,7 @@ app = FastAPI(title="Voxify TTS API 🚀")
 # ================= CORS =================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # production me specific domain use karna
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,8 +29,10 @@ def health():
 class TTSRequest(BaseModel):
     text: str
     voice: str = "en-US-AriaNeural"
+    pitch: str = "0Hz"   # 🔥 NEW
+    rate: str = "0%"     # 🔥 NEW
 
-# ================= VOICES API =================
+# ================= VOICES =================
 @app.get("/voices")
 async def get_voices():
     try:
@@ -49,19 +51,37 @@ async def get_voices():
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+# ================= STYLE PRESETS =================
+def apply_style(style: str):
+    styles = {
+        "deep": {"pitch": "-20Hz", "rate": "-10%"},
+        "soft": {"pitch": "+10Hz", "rate": "-5%"},
+        "sad": {"pitch": "-10Hz", "rate": "-20%"},
+        "angry": {"pitch": "+15Hz", "rate": "+15%"},
+        "story": {"pitch": "+5Hz", "rate": "-10%"},
+        "normal": {"pitch": "0Hz", "rate": "0%"}
+    }
+    return styles.get(style, styles["normal"])
+
 # ================= TTS =================
 @app.post("/tts")
 async def tts(req: TTSRequest):
 
-    # basic validation
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Text is required")
 
     try:
         async def audio_stream():
+
+            # 🔥 अगर frontend style भेजे तो apply करो
+            pitch = req.pitch
+            rate = req.rate
+
             communicate = edge_tts.Communicate(
                 text=req.text,
-                voice=req.voice
+                voice=req.voice,
+                pitch=pitch,
+                rate=rate
             )
 
             async for chunk in communicate.stream():
